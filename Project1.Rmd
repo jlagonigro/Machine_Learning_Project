@@ -1,0 +1,116 @@
+---
+title: "Machine Learning - Project"
+author: "John Lagonigro"
+date: "April 2, 2016"
+output: html_document
+---
+
+
+## Background
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+## Overview
+We will load the available training and test data and then perform data cleaning on both data sets. We will then partition the training set for cross-validation, apply two prediction models, and see which one has a higher level of accuracy.  We will also examine our expected out-of error rates, and then apply the best prediction model to our test set.  Our goal is to predict the type of exercise done, as shown in the "classe" column, by any combination of other available variables.
+
+## Process and R code
+### Loading Libraries and Data
+First we load the caret, randomForest, and rpart packages for Machine Learning functions
+
+```{r}
+library(caret)
+library(randomForest)
+library(rpart)
+```
+
+
+Next we load in our training and testing datasets that we download from the below locations:
+
+training data: https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+testing data: https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+We will use the training data to build our Machine Learning algorithms, and we will reserve the testing data for our final prediction once we have arrived at the best prediction approach.
+
+```{r}
+master_train_data <- read.csv("pml_training.csv", header=TRUE, na.strings=c("NA","#DIV/0!", ""))
+master_test_data <- read.csv("pml-testing.csv", header=TRUE, na.strings=c("NA","#DIV/0!", ""))
+```
+
+### Cleaning the data
+Through some initial explortaion, we find a lot of rows have little or no values, or values with little variation. we start by removing these rows from our training and test data sets
+
+```{r}
+master_train_data <-master_train_data[ ,colSums(is.na(master_train_data)) == 0]
+master_test_data <-master_test_data[ ,colSums(is.na(master_test_data)) == 0]
+```
+
+Next we see that we have some begining columns that have id, time-based, user-based, and yes/no variables. We remove these columns from both our training and testing data sets.
+
+```{r}
+master_train_data$X <- NULL
+master_train_data$training$user_name <- NULL
+master_train_data$raw_timestamp_part_1 <- NULL
+master_train_data$raw_timestamp_part_2 <- NULL
+master_train_data$cvtd_timestamp <- NULL
+master_train_data$new_window <- NULL
+master_train_data$num_window <- NULL
+
+master_test_data$X <- NULL
+master_test_data$training$user_name <- NULL
+master_test_data$raw_timestamp_part_1 <- NULL
+master_test_data$raw_timestamp_part_2 <- NULL
+master_test_data$cvtd_timestamp <- NULL
+master_test_data$new_window <- NULL
+master_test_data$num_window <- NULL
+```
+
+### Cross-validation
+We set a random seed so that we have reproducible results as we work with in this documented fashion.
+
+```{r}
+set.seed(112378)
+```
+
+In order to run our Machine Learnign algorithms, we split our training set into a training and test set, with 70% of the data representing our training set, and 30% being reserved for testing.
+
+```{r}
+inTrain <- createDataPartition(y=master_train_data$classe, p=0.7, list=FALSE)
+training <- master_train_data[inTrain, ]
+testing <- training[-inTrain, ]
+```
+
+### Machine Learning: Decision Tree
+We start by applying a Decision Tree to our training data, and then using that model to predict the "classe" in our testing dataset.
+```{r cache=TRUE}
+decision_tree <- train(classe ~ ., method="rpart", data=training)
+predict_dt <- predict(decision_tree, testing)
+```
+
+We then look to see how good our prediction model was when applied to our testing data set
+```{r cache=TRUE}
+confusionMatrix(predict_dt, testing$classe)
+```
+
+We see that our decision tree is only 49.38% accurate, which means we have an out-of-sample error rate of 50.62%.  We hope that applying another model will yield higher accuracy.
+
+### Machine Learning: Random Forests
+We start by applying Random Forests to our training data, and then using that model to predict the "classe" in our testing dataset.
+```{r cache=TRUE}
+random_forest <- train(classe ~ ., method="rf", data=training)
+predict_rf <- predict(random_forest, testing)
+```
+
+We then check how good this model is at predicting our testing data set
+```{r cache=TRUE}
+confusionMatrix(predict_rf, testing$classe)
+```
+
+We see that random forests yields an accuracy rate of 100%!  This means the out-of-sample error rate is 0.  
+It doesn't get any better than this, so we choose to use Random Forests to predict our reserved test data. 
+It turned out we did correctly predict all 20 "classe" outcomes based on our prediction model!
+
+### Apply final Random Forest Model to original (reserved) test data
+```{r cache=TRUE}
+master_test_predict <- predict(random_forest, master_test_data)
+print(master_test_predict)
+```
