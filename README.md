@@ -1,2 +1,2 @@
-# Data Science Specialization > Course 8: Machine Learning
-## Course Project
+## Data Science Specialization > Course 8: Machine Learning
+### Course Project
